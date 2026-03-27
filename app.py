@@ -3,6 +3,9 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import pandas as pd
 
+# -------------------------------
+# PAGE CONFIG
+# -------------------------------
 st.set_page_config(page_title="Directional Drilling Tool", layout="wide")
 
 st.title("🛢️ Directional Drilling Calculator")
@@ -32,8 +35,11 @@ data = st.data_editor(
     num_rows="dynamic"
 )
 
+# 🔥 IMPORTANT FIX: Reset index
+data = data.reset_index(drop=True)
+
 if len(data) < 2:
-    st.warning("Enter at least 2 points")
+    st.warning("Enter at least 2 survey points")
     st.stop()
 
 # -------------------------------
@@ -77,30 +83,29 @@ def radius_of_curvature(delta_MD, I1, I2, A1, A2):
 
 
 # -------------------------------
-# CALCULATE
+# CALCULATION
 # -------------------------------
-if st.button("🚀 Calculate"):
+if st.button("🚀 Calculate Trajectory"):
 
     TVD, N, E = [0], [0], [0]
-    doglegs = []
     DLS = []
 
     for i in range(1, len(data)):
 
-        delta_MD = data["MD"][i] - data["MD"][i-1]
+        # ✅ FIX: use .iloc
+        delta_MD = data["MD"].iloc[i] - data["MD"].iloc[i-1]
 
         if delta_MD <= 0:
-            st.error("MD must increase")
+            st.error("MD must increase sequentially")
             st.stop()
 
-        I1 = data["Inclination"][i-1]
-        I2 = data["Inclination"][i]
-        A1 = data["Azimuth"][i-1]
-        A2 = data["Azimuth"][i]
+        I1 = data["Inclination"].iloc[i-1]
+        I2 = data["Inclination"].iloc[i]
+        A1 = data["Azimuth"].iloc[i-1]
+        A2 = data["Azimuth"].iloc[i]
 
         if method == "Minimum Curvature":
             dTVD, dN, dE, DL = minimum_curvature(delta_MD, I1, I2, A1, A2)
-            doglegs.append(DL)
 
             dls = (DL / delta_MD) * 100
             DLS.append(dls)
@@ -116,7 +121,7 @@ if st.button("🚀 Calculate"):
     # -------------------------------
     # RESULTS
     # -------------------------------
-    st.subheader("📊 Results")
+    st.subheader("📊 Final Results")
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Final TVD", f"{TVD[-1]:.2f}")
@@ -143,7 +148,7 @@ if st.button("🚀 Calculate"):
     # -------------------------------
     # PLOTS
     # -------------------------------
-    st.subheader("📈 Plots")
+    st.subheader("📈 Well Path Visualization")
 
     col1, col2 = st.columns(2)
 
@@ -172,14 +177,14 @@ if st.button("🚀 Calculate"):
     st.subheader("📉 Dog-Leg Severity")
 
     fig3 = plt.figure()
-    plt.plot(data["MD"][1:], DLS, marker='o')
+    plt.plot(data["MD"].iloc[1:], DLS, marker='o')
     plt.xlabel("Measured Depth")
     plt.ylabel("DLS (°/100m)")
-    plt.title("Dog-Leg Severity vs MD")
+    plt.title("DLS vs MD")
     st.pyplot(fig3)
 
 # -------------------------------
 # INFO
 # -------------------------------
 st.markdown("---")
-st.info("Includes Minimum Curvature, Radius of Curvature, Full Trajectory and DLS analysis.")
+st.info("Minimum Curvature & Radius of Curvature methods with full trajectory and DLS analysis.")
